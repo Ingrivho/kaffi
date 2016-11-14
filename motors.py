@@ -114,3 +114,6 @@ class Motors():
                 sleep(duration/16)
                 self.stop()
         pass
+
+
+GPIO.cleanup()

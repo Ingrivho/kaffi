@@ -22,3 +22,6 @@ class Led():
             time.sleep(t)
             self.light_off()
             time.sleep(t)
+
+
+GPIO.cleanup()
