@@ -3,7 +3,7 @@ import time
 
 class Led():
     def __init__(self):
-        self.pin = 22
+        self.pin = 13
         self.setup()
 
     def setup(self):
