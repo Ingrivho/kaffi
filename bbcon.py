@@ -1,82 +1,87 @@
+#! python3
+
+from basic_robot.camera import Camera
+from basic_robot.irproximity_sensor import IRProximitySensor
+from basic_robot.reflectance_sensors import ReflectanceSensors
+from basic_robot.ultrasonic import Ultrasonic
+from basic_robot.zumo_button import ZumoButton
 from arbitrator import Arbitrator
-from zumo_button import ZumoButton
-from led import Led
+import behavior
+from motob import Motob
+from sensob import Sensob
+import time
+from basic_robot.motors import Motors
 
-class Bbcon():
+
+class BBCon:
     def __init__(self):
-        self.behaviors = []
-        self.active_behaviors = []
-        self.sensobs = []
-        self.motobs = []
-        self.arbitrator = Arbitrator();
-        self.active = True
+        #cam = Camera(img_width=300, img_height=200)
+        #print(cam.update())
 
-    def add_behavior(self, behavior):
-        self.behaviors.append(behavior)
+        self.arbitrator = Arbitrator(self) # the arbitrator object that will resolve actuator requests produced by the behaviors
+        self.motob = Motob() # the single motor object used by the bbcon
+        self.sensobs = {
+            #"C": Sensob(Camera()),
+            "I": Sensob(IRProximitySensor()),
+            "R": Sensob(ReflectanceSensors()),
+            #"U": Sensob(Ultrasonic())
+        } # list of all sensory objects used by the bbcon
+        self.behaviors = [
+            #behavior.AvoidObstacleFront(self),
+            behavior.AvoidObstacleSides(self),
+            behavior.walkRandomly(self),
+            behavior.walkStraight(self),
+            behavior.detectVictory(self)
+        ]  # list of all the behavior objects used by the bbcon
+        self.active_behaviors = self.behaviors  # list of all the behaviors that are currently active
+        self.motor_command = ("S", False)
 
-    def add_sensob(self, sensob):
-        self.sensobs.append(sensob)
 
-    def add_motob(self, motob):
-        self.motobs.append(motob)
+        self.debug_motor = Motors()
 
-    def activate_behavior(self, behavior):
-        if behavior in self.behaviors:
-            self.active_behaviors.append(behavior)
+    def activate_behavior(self):
+        """"add an existing behavior onto the active-behaviors list"""
 
-    def deactivate_behavior(self, behavior):
-        if behavior in self.active_behaviors:
-            self.active_behaviors.remove(behavior)
-
-    def activate_all_behaviors(self):
-        for b in self.behaviors:
-            self.activate_behavior(b)
-
-    def get_active_behaviors(self):
-        return self.active_behaviors
-
-    def halt_request(self):
-        self.active = False
-        for m in self.motobs:
-            m.stop()
-        Led().pulse(10, 0.1)
+    def deactive_behavior(self):
+        """remove an existing behavior from the active behaviors list"""
 
     def run_one_timestep(self):
-        # Update all sensobs
-        self.update_sensobs()
+        """
+        constitutes the core BBCON
+        activity. It should perform (at least) the following actions on each call:
+        1. Update all sensobs - These updates will involve querying the relevant sensors for their values, along
+        with any pre-processing of those values (as described below)
+        2. Update all behaviors - These updates involve reading relevant sensob values and producing a motor
+        recommendation.
+        3. Invoke the arbitrator by calling arbitrator.choose action, which will choose a winning behavior and
+        return that behavior's motor recommendations and halt request flag.
+        4. Update the motobs based on these motor recommendations. The motobs will then update the settings
+        of all motors.
+        5. Wait - This pause (in code execution) will allow the motor settings to remain active for a short period
+        of time, e.g., one half second, thus producing activity in the robot, such as moving forward or turning.
+        6. Reset the sensobs - Each sensob may need to reset itself, or its associated sensor(s), in some way
+        """
+        print("new timestep", self.motor_command)
 
-        # Update all behaviours
-        self.update_behaviors()
 
-        # Invoke the arbitrator
-        recommendations = self.arbitrator.choose_action(self.active_behaviors)
-
-        # Update all motobs based on the above
-        print(recommendations)
-        self.update_motors(recommendations)
-
-        # Exits if button is pressed again
-        if ZumoButton().check_if_pressed() == 0:
-            self.halt_request()
-
-        # Resets sensors
-        self.reset_sensobs()
-
-    def update_sensobs(self):
-        for sensob in self.sensobs:
-            sensob.update()
-
-    def reset_sensobs(self):
-        for sensob in self.sensobs:
-            sensob.reset()
-
-    def update_behaviors(self):
-        for behavior in self.behaviors:
+        for i in self.sensobs:
+            self.sensobs[i].update()
+        for i in range(len(self.active_behaviors)):
+            behavior = self.active_behaviors[i]
             behavior.update()
+            print(behavior.__class__.__name__ + ": " + str(behavior.weight), behavior.motor_recommendation)
+        command = self.arbitrator.choose_action()
+        print("Command:", command)
+        self.motor_command = command
+        self.motob.update(command[0])
+        #time.sleep(0.1)
+        for i in self.sensobs:
+            self.sensobs[i].reset()
 
-    def update_motors(self, recommendation):
-        for motob in self.motobs:
-            motob.update(recommendation)
-
-
-
+if __name__ == '__main__':
+    bb = BBCon()
+    print("ready to run first timestep")
+    ZumoButton().wait_for_press()
+    bb.motob = Motob()
+    while True:
+        bb.run_one_timestep()
