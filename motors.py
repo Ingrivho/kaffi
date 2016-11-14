@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from time import sleep
 import RPi.GPIO as GPIO
-import wiringpi as wp
+import wiringpi2 as wp
 
 
 class Motors():
@@ -13,6 +13,8 @@ class Motors():
         self.high = 500
         self.normal = 300
         self.low = 100
+
+        wp.wiringPiSetupGpio()
 
         wp.pinMode(18, 2)
         wp.pinMode(19, 2)
@@ -39,11 +41,12 @@ class Motors():
         self.persist(dur)
 
     def backward(self, speed=0.25, dur=None):
-        self.dc = int(self.max * speed)
         self.set_left_dir(1)
         self.set_right_dir(1)
         self.set_left_speed(self.dc)
         self.set_right_speed(self.dc)
+        self.dc = int(self.max * speed)
+
         self.persist(dur)
 
     def left(self, speed=0.25, dur=None):
@@ -107,6 +110,7 @@ class Motors():
 
     def persist(self, duration):
         if duration:
-            sleep(duration)
-            self.stop()
-
+            if duration >= 2:
+                sleep(duration/16)
+                self.stop()
+        pass

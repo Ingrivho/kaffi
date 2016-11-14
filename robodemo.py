@@ -7,7 +7,7 @@ from reflectance_sensors import ReflectanceSensors
 from camera import Camera
 from motors import Motors
 from ultrasonic import Ultrasonic
-from zumo_button import ZumoButton
+from zumo_button2 import ZumoButton
 
 
 ## BE SURE TO RUN THESE DEMOS ON THE FLOOR or to have plenty of people guarding
