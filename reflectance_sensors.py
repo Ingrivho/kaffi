@@ -130,6 +130,3 @@ class ReflectanceSensors():
         elif (normalized_value < 0.0):
             return 0.0
         return normalized_value
-
-
-GPIO.cleanup()
